@@ -14,125 +14,73 @@ const cards = [
 const emptyBoard = Array(9).fill(null);
 
 function winner(board) {
-  const lines = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6],
-  ];
-  for (const [a,b,c] of lines) {
-    if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
-  }
+  const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for (const [a,b,c] of lines) if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
   return board.every(Boolean) ? "draw" : null;
 }
 
 function aiMove(board) {
   const free = board.map((v,i) => v ? null : i).filter(v => v !== null);
   if (!free.length) return board;
-
-  // AI najpierw próbuje wygrać.
-  for (const i of free) {
-    const test = [...board]; test[i] = "O";
-    if (winner(test) === "O") return test;
-  }
-  // Potem blokuje gracza.
-  for (const i of free) {
-    const test = [...board]; test[i] = "X";
-    if (winner(test) === "X") { const next=[...board]; next[i]="O"; return next; }
-  }
-  // Preferuje środek, potem narożniki, potem losowe wolne pole.
-  const preferred = [4,0,2,6,8,1,3,5,7].filter(i => !board[i]);
-  const i = preferred[Math.floor(Math.random() * Math.min(preferred.length, 3))];
-  const next = [...board]; next[i] = "O"; return next;
+  for (const i of free) { const test=[...board]; test[i]="O"; if(winner(test)==="O") return test; }
+  for (const i of free) { const test=[...board]; test[i]="X"; if(winner(test)==="X"){const next=[...board];next[i]="O";return next;} }
+  const preferred=[4,0,2,6,8,1,3,5,7].filter(i=>!board[i]);
+  const i=preferred[Math.floor(Math.random()*Math.min(preferred.length,3))]; const next=[...board]; next[i]="O"; return next;
 }
 
 export default function Home() {
-  const [toast, setToast] = useState("");
-  const [gameOpen, setGameOpen] = useState(false);
-  const [board, setBoard] = useState(emptyBoard);
-  const [thinking, setThinking] = useState(false);
+  const [toast,setToast]=useState("");
+  const [gameOpen,setGameOpen]=useState(false);
+  const [ideasOpen,setIdeasOpen]=useState(false);
+  const [board,setBoard]=useState(emptyBoard);
+  const [thinking,setThinking]=useState(false);
+  const [projects,setProjects]=useState([{name:"Firma: Stacja benzynowa",ideas:["Kasa samoobsługowa","Program lojalnościowy"]}]);
+  const [selectedProject,setSelectedProject]=useState(0);
+  const [newProject,setNewProject]=useState("");
+  const [newIdea,setNewIdea]=useState("");
+  const [secret,setSecret]=useState(false);
 
-  function click(message) {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 1800);
+  function click(message){setToast(message);window.setTimeout(()=>setToast(""),1800);}
+  function resetGame(){setBoard(emptyBoard);setThinking(false);}
+  function playerMove(index){
+    if(thinking||board[index]||winner(board))return;
+    const next=[...board];next[index]="X";setBoard(next);const result=winner(next);
+    if(result){click(result==="X"?"🏆 WYGRANA! AI właśnie dostało po głowie.":"🤝 Remis!");return;}
+    setThinking(true);window.setTimeout(()=>{const afterAI=aiMove(next);setBoard(afterAI);setThinking(false);const r=winner(afterAI);if(r)click(r==="O"?"🤖 AI WYGRYWA! Rewanż?":"🤝 Remis!");},450);
+  }
+  function addProject(){
+    const name=newProject.trim();if(!name)return;
+    setProjects(p=>[...p,{name,ideas:[]}]);setSelectedProject(projects.length);setNewProject("");click("📁 Projekt utworzony!");
+  }
+  function addIdea(){
+    const idea=newIdea.trim();if(!idea)return;
+    setProjects(p=>p.map((project,i)=>i===selectedProject?{...project,ideas:[...project.ideas,idea]}:project));setNewIdea("");click("💡 Propozycja dodana na stałe w tej sesji!");
   }
 
-  function resetGame() {
-    setBoard(emptyBoard);
-    setThinking(false);
-  }
+  return <main className="shell">
+    <header className="topbar">
+      <div className="logo">NEXORAS <span>COMMUNITY</span></div>
+      <nav className="nav">
+        <button onClick={()=>setGameOpen(true)}>Gry</button>
+        <button onClick={()=>setIdeasOpen(true)}>Pomysły</button>
+        <button onClick={()=>click("🤖 AI czeka na pytania.")}>AI</button>
+        <button onClick={()=>click("📻 Banger incoming!")}>Radio</button>
+      </nav>
+      <button className="profile" onClick={()=>click("👤 Profile dołączą w kolejnym etapie.")}>Profil</button>
+    </header>
 
-  function playerMove(index) {
-    if (thinking || board[index] || winner(board)) return;
-    const next = [...board]; next[index] = "X";
-    setBoard(next);
-    const result = winner(next);
-    if (result) { click(result === "X" ? "🏆 WYGRANA! AI właśnie dostało po głowie." : "🤝 Remis!"); return; }
-    setThinking(true);
-    window.setTimeout(() => {
-      const afterAI = aiMove(next);
-      setBoard(afterAI);
-      setThinking(false);
-      const aiResult = winner(afterAI);
-      if (aiResult) click(aiResult === "O" ? "🤖 AI WYGRYWA! Rewanż?" : "🤝 Remis!");
-    }, 450);
-  }
+    <section className="hero"><div className="kicker">Nexoras Community • v0.3</div><h1>Jedno miejsce.<br/>Dużo możliwości.</h1><p>Gry, AI, radio, pomysły i społeczność. Każdy klik może coś odpalić. 👀</p></section>
 
-  return (
-    <main className="shell">
-      <header className="topbar">
-        <div className="logo">NEXORAS <span>COMMUNITY</span></div>
-        <nav className="nav">
-          <button onClick={() => setGameOpen(true)}>Gry</button>
-          <button onClick={() => click("💡 Czas wymyślić coś wielkiego.")}>Pomysły</button>
-          <button onClick={() => click("🤖 AI czeka na pytania.")}>AI</button>
-          <button onClick={() => click("📻 Radio: banger incoming!")}>Radio</button>
-        </nav>
-        <button className="profile" onClick={() => click("👤 Profile pojawią się w następnym etapie.")}>Profil</button>
-      </header>
+    <section className="grid">
+      {cards.map(([icon,title,description])=><article className="card" key={title}><div className="icon">{icon}</div><h2>{title}</h2><p>{description}</p><button onClick={()=>title==="Gry"?setGameOpen(true):title==="Pomysły"?setIdeasOpen(true):click(`${icon} ${title}: nadchodzimy!`)}>Otwórz</button></article>)}
+      <article className="card wide radio"><div><div className="icon">🔊</div><h2>Nexoras Radio</h2><p>Teraz: <strong>Banger #001</strong> • prawdziwe radio dołożymy w kolejnym etapie.</p></div><button className="play" onClick={()=>click("🎵 BANGER MODE ACTIVATED")}>▶</button></article>
+      <article className={`card secret ${secret?"secretActive":""}`} onClick={()=>{setSecret(true);click("🗿 SIX SEVEN! Odkryłeś sekret #07.")}}><div className="icon">🟪</div><h2>SIX SEVEN</h2><p>{secret?"6️⃣ 7️⃣ SEKRET ODKRYTY!":"To wygląda jak zwykła karta. Kliknij, jeśli masz odwagę."}</p></article>
+    </section>
 
-      <section className="hero">
-        <div className="kicker">Nexoras Community • v0.2</div>
-        <h1>Jedno miejsce.<br />Dużo możliwości.</h1>
-        <p>Gry, AI, radio, pomysły i społeczność. Każdy klik może coś odpalić. 👀</p>
-      </section>
+    {gameOpen&&<div className="gameOverlay" role="dialog" aria-modal="true"><div className="gamePanel"><button className="close" onClick={()=>setGameOpen(false)}>✕</button><div className="kicker">🎮 NEXORAS GAMES</div><h2>Kółko i krzyżyk</h2><p>Ty: ❌ X • AI: ⭕ O</p><div className="board">{board.map((value,index)=><button key={index} className="cell" onClick={()=>playerMove(index)}>{value}</button>)}</div><p className="gameStatus">{thinking?"🤖 AI myśli...":winner(board)==="X"?"🏆 Wygrałeś!":winner(board)==="O"?"🤖 AI wygrało!":winner(board)==="draw"?"🤝 Remis!":"Twój ruch, szefie."}</p><button className="reset" onClick={resetGame}>🔄 Nowa gra</button></div></div>}
 
-      <section className="grid">
-        {cards.map(([icon, title, description]) => (
-          <article className="card" key={title}>
-            <div className="icon">{icon}</div>
-            <h2>{title}</h2>
-            <p>{description}</p>
-            <button onClick={() => title === "Gry" ? setGameOpen(true) : click(`${icon} ${title}: nadchodzimy!`)}>Otwórz</button>
-          </article>
-        ))}
+    {ideasOpen&&<div className="gameOverlay" role="dialog" aria-modal="true"><div className="ideasPanel"><button className="close" onClick={()=>setIdeasOpen(false)}>✕</button><div className="kicker">💡 NEXORAS IDEAS</div><h2>Pomysły społeczności</h2><div className="projectCreator"><input value={newProject} onChange={e=>setNewProject(e.target.value)} placeholder="Nazwa projektu, np. Firma: Stacja benzynowa"/><button onClick={addProject}>＋ Utwórz folder</button></div><div className="ideasLayout"><aside>{projects.map((p,i)=><button key={p.name} className={i===selectedProject?"selectedProject":""} onClick={()=>setSelectedProject(i)}>📁 {p.name}</button>)}</aside><section className="ideaList"><h3>{projects[selectedProject]?.name}</h3>{projects[selectedProject]?.ideas.map((idea,i)=><div className="idea" key={`${idea}-${i}`}>💡 {idea}</div>)}<div className="ideaCreator"><input value={newIdea} onChange={e=>setNewIdea(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addIdea()} placeholder="Wpisz swoją propozycję..."/><button onClick={addIdea}>Dodaj</button></div></section></div></div></div>}
 
-        <article className="card wide radio">
-          <div><div className="icon">🔊</div><h2>Nexoras Radio</h2><p>Teraz: <strong>Banger #001</strong> • prawdziwe radio dołożymy w kolejnym etapie.</p></div>
-          <button className="play" onClick={() => click("🎵 BANGER MODE ACTIVATED")}>▶</button>
-        </article>
-
-        <article className="card" onClick={() => click("🗿 SECRET: six seven") }>
-          <div className="icon">🟪</div><h2>SIX SEVEN</h2><p>To wygląda jak zwykła karta. Kliknij, jeśli masz odwagę.</p>
-        </article>
-      </section>
-
-      {gameOpen && (
-        <div className="gameOverlay" role="dialog" aria-modal="true">
-          <div className="gamePanel">
-            <button className="close" onClick={() => setGameOpen(false)}>✕</button>
-            <div className="kicker">🎮 NEXORAS GAMES</div>
-            <h2>Kółko i krzyżyk</h2>
-            <p>Ty: ❌ X &nbsp; • &nbsp; AI: ⭕ O</p>
-            <div className="board">
-              {board.map((value, index) => <button key={index} className="cell" onClick={() => playerMove(index)}>{value}</button>)}
-            </div>
-            <p className="gameStatus">{thinking ? "🤖 AI myśli..." : winner(board) === "X" ? "🏆 Wygrałeś!" : winner(board) === "O" ? "🤖 AI wygrało!" : winner(board) === "draw" ? "🤝 Remis!" : "Twój ruch, szefie."}</p>
-            <button className="reset" onClick={resetGame}>🔄 Nowa gra</button>
-          </div>
-        </div>
-      )}
-
-      {toast && <div className="toast">{toast}</div>}
-    </main>
-  );
+    {toast&&<div className="toast">{toast}</div>}
+  </main>;
 }
