@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const cards = [
   ["🎮", "Gry", "Kółko-krzyżyk z AI i kolejne gry."],
@@ -34,27 +34,54 @@ export default function Home() {
   const [ideasOpen,setIdeasOpen]=useState(false);
   const [board,setBoard]=useState(emptyBoard);
   const [thinking,setThinking]=useState(false);
-  const [projects,setProjects]=useState([{name:"Firma: Stacja benzynowa",ideas:["Kasa samoobsługowa","Program lojalnościowy"]}]);
+  const [projects,setProjects]=useState([]);
   const [selectedProject,setSelectedProject]=useState(0);
   const [newProject,setNewProject]=useState("");
   const [newIdea,setNewIdea]=useState("");
+  const [loadingIdeas,setLoadingIdeas]=useState(false);
   const [secret,setSecret]=useState(false);
 
   function click(message){setToast(message);window.setTimeout(()=>setToast(""),1800);}
   function resetGame(){setBoard(emptyBoard);setThinking(false);}
+
+  useEffect(() => {
+    fetch("/api/ideas")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("API Ideas niedostępne")))
+      .then((data) => setProjects(data.projects || []))
+      .catch(() => click("⚠️ Ideas API czeka na zmienne Supabase."));
+  }, []);
+
   function playerMove(index){
     if(thinking||board[index]||winner(board))return;
     const next=[...board];next[index]="X";setBoard(next);const result=winner(next);
     if(result){click(result==="X"?"🏆 WYGRANA! AI właśnie dostało po głowie.":"🤝 Remis!");return;}
     setThinking(true);window.setTimeout(()=>{const afterAI=aiMove(next);setBoard(afterAI);setThinking(false);const r=winner(afterAI);if(r)click(r==="O"?"🤖 AI WYGRYWA! Rewanż?":"🤝 Remis!");},450);
   }
-  function addProject(){
+
+  async function addProject(){
     const name=newProject.trim();if(!name)return;
-    setProjects(p=>[...p,{name,ideas:[]}]);setSelectedProject(projects.length);setNewProject("");click("📁 Projekt utworzony!");
+    setLoadingIdeas(true);
+    try {
+      const response=await fetch("/api/ideas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"project",name})});
+      const project=await response.json();
+      if(!response.ok)throw new Error(project.error);
+      setProjects((current)=>[...current,{...project,ideas:[]}]);
+      setSelectedProject(projects.length);setNewProject("");click("📁 Projekt zapisany w Nexoras!");
+    } catch(error) { click(`⚠️ ${error.message}`); }
+    finally { setLoadingIdeas(false); }
   }
-  function addIdea(){
-    const idea=newIdea.trim();if(!idea)return;
-    setProjects(p=>p.map((project,i)=>i===selectedProject?{...project,ideas:[...project.ideas,idea]}:project));setNewIdea("");click("💡 Propozycja dodana na stałe w tej sesji!");
+
+  async function addIdea(){
+    const text=newIdea.trim();const project=projects[selectedProject];if(!text||!project)return;
+    setLoadingIdeas(true);
+    try {
+      const response=await fetch("/api/ideas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"idea",projectId:project.id,text,authorName:"Anonim"})});
+      const idea=await response.json();
+      if(!response.ok)throw new Error(idea.error);
+      setProjects((current)=>current.map((item,index)=>index===selectedProject?{...item,ideas:[...(item.ideas||[]),idea]}:item));
+      setNewIdea("");click("💡 Propozycja zapisana na stałe!");
+    } catch(error) { click(`⚠️ ${error.message}`); }
+    finally { setLoadingIdeas(false); }
   }
 
   return <main className="shell">
@@ -69,7 +96,7 @@ export default function Home() {
       <button className="profile" onClick={()=>click("👤 Profile dołączą w kolejnym etapie.")}>Profil</button>
     </header>
 
-    <section className="hero"><div className="kicker">Nexoras Community • v0.3</div><h1>Jedno miejsce.<br/>Dużo możliwości.</h1><p>Gry, AI, radio, pomysły i społeczność. Każdy klik może coś odpalić. 👀</p></section>
+    <section className="hero"><div className="kicker">Nexoras Community • v0.4</div><h1>Jedno miejsce.<br/>Dużo możliwości.</h1><p>Gry, AI, radio, pomysły i społeczność. Każdy klik może coś odpalić. 👀</p></section>
 
     <section className="grid">
       {cards.map(([icon,title,description])=><article className="card" key={title}><div className="icon">{icon}</div><h2>{title}</h2><p>{description}</p><button onClick={()=>title==="Gry"?setGameOpen(true):title==="Pomysły"?setIdeasOpen(true):click(`${icon} ${title}: nadchodzimy!`)}>Otwórz</button></article>)}
@@ -79,7 +106,7 @@ export default function Home() {
 
     {gameOpen&&<div className="gameOverlay" role="dialog" aria-modal="true"><div className="gamePanel"><button className="close" onClick={()=>setGameOpen(false)}>✕</button><div className="kicker">🎮 NEXORAS GAMES</div><h2>Kółko i krzyżyk</h2><p>Ty: ❌ X • AI: ⭕ O</p><div className="board">{board.map((value,index)=><button key={index} className="cell" onClick={()=>playerMove(index)}>{value}</button>)}</div><p className="gameStatus">{thinking?"🤖 AI myśli...":winner(board)==="X"?"🏆 Wygrałeś!":winner(board)==="O"?"🤖 AI wygrało!":winner(board)==="draw"?"🤝 Remis!":"Twój ruch, szefie."}</p><button className="reset" onClick={resetGame}>🔄 Nowa gra</button></div></div>}
 
-    {ideasOpen&&<div className="gameOverlay" role="dialog" aria-modal="true"><div className="ideasPanel"><button className="close" onClick={()=>setIdeasOpen(false)}>✕</button><div className="kicker">💡 NEXORAS IDEAS</div><h2>Pomysły społeczności</h2><div className="projectCreator"><input value={newProject} onChange={e=>setNewProject(e.target.value)} placeholder="Nazwa projektu, np. Firma: Stacja benzynowa"/><button onClick={addProject}>＋ Utwórz folder</button></div><div className="ideasLayout"><aside>{projects.map((p,i)=><button key={p.name} className={i===selectedProject?"selectedProject":""} onClick={()=>setSelectedProject(i)}>📁 {p.name}</button>)}</aside><section className="ideaList"><h3>{projects[selectedProject]?.name}</h3>{projects[selectedProject]?.ideas.map((idea,i)=><div className="idea" key={`${idea}-${i}`}>💡 {idea}</div>)}<div className="ideaCreator"><input value={newIdea} onChange={e=>setNewIdea(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addIdea()} placeholder="Wpisz swoją propozycję..."/><button onClick={addIdea}>Dodaj</button></div></section></div></div></div>}
+    {ideasOpen&&<div className="gameOverlay" role="dialog" aria-modal="true"><div className="ideasPanel"><button className="close" onClick={()=>setIdeasOpen(false)}>✕</button><div className="kicker">💡 NEXORAS IDEAS</div><h2>Pomysły społeczności</h2><div className="projectCreator"><input value={newProject} onChange={e=>setNewProject(e.target.value)} placeholder="Nazwa projektu, np. Firma: Stacja benzynowa"/><button disabled={loadingIdeas} onClick={addProject}>{loadingIdeas?"Zapisuję...":"＋ Utwórz folder"}</button></div><div className="ideasLayout"><aside>{projects.map((p,i)=><button key={p.id} className={i===selectedProject?"selectedProject":""} onClick={()=>setSelectedProject(i)}>📁 {p.name}</button>)}</aside><section className="ideaList">{projects[selectedProject]?<><h3>{projects[selectedProject].name}</h3>{(projects[selectedProject].ideas||[]).map((idea,i)=><div className="idea" key={idea.id||`${idea.text}-${i}`}>💡 {idea.text} <small>• {idea.author_name}</small></div>)}<div className="ideaCreator"><input value={newIdea} onChange={e=>setNewIdea(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addIdea()} placeholder="Wpisz swoją propozycję..."/><button disabled={loadingIdeas} onClick={addIdea}>Dodaj</button></div></>:<p>Brak projektów. Utwórz pierwszy! 🚀</p>}</section></div></div></div>}
 
     {toast&&<div className="toast">{toast}</div>}
   </main>;
