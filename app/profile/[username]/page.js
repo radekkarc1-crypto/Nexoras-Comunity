@@ -1,10 +1,55 @@
 "use client";
-import {useEffect,useState} from "react";
-import {useParams} from "next/navigation";
-import {getSupabaseBrowser} from "../../../lib/supabase-browser";
 
-export default function PublicProfile(){
- const {username}=useParams();const [profile,setProfile]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState("");
- useEffect(()=>{if(!username)return;(async()=>{const s=getSupabaseBrowser();const value=decodeURIComponent(username);const{data,error}=await s.from("profiles").select("id,username,display_name,avatar_url,created_at").eq("username",value).maybeSingle();if(error)setError(error.message);else setProfile(data);setLoading(false)})()},[username]);
- return <main className="shell"><header className="topbar"><div className="logo">NEXORAS <span>PROFILE</span></div><nav className="nav"><a href="/community">Community</a><a href="/">Start</a></nav></header><section className="notesPage"><div className="kicker">👤 PUBLIC PROFILE</div>{loading?<h1>Ładowanie... 🛰️</h1>:error?<h1>⚠️ {error}</h1>:!profile?<><h1>👻 Nie znaleziono profilu</h1><p>Ten Nexorian jeszcze nie istnieje albo zmienił nick.</p><a className="profile" href="/community">← Wróć do Community</a></>:<div className="editor" style={{maxWidth:650,marginTop:30}}><div style={{fontSize:90}}>{profile.avatar_url?<img src={profile.avatar_url} alt="Avatar" style={{width:120,height:120,borderRadius:"50%",objectFit:"cover"}}/>:"👤"}</div><h1>{profile.display_name||profile.username||"Nexorian"}</h1><p>@{profile.username}</p><p>🟢 Członek Nexoras Community</p><hr/><p>📅 Dołączył: {new Date(profile.created_at).toLocaleDateString("pl-PL")}</p><div style={{display:"flex",gap:10,marginTop:20,flexWrap:"wrap"}}><a className="profile" href="/community">🌐 Community</a><a className="profile" href="/">🏠 Nexoras</a></div></div>}</section></main>;
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { getSupabaseBrowser } from "../../../lib/supabase-browser";
+
+export default function ProfilePage() {
+  const params = useParams();
+  const username = decodeURIComponent(params.username || "");
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!username) return;
+    (async () => {
+      try {
+        const s = getSupabaseBrowser();
+        if (!s) throw new Error("Supabase nie jest skonfigurowany.");
+        const { data, error } = await s
+          .from("profiles")
+          .select("id,username,display_name,avatar_url,created_at")
+          .or(`username.eq.${username},id.eq.${username}`)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error("Nie znaleziono takiego użytkownika.");
+        setProfile(data);
+      } catch (e) {
+        setError(e.message || "Nie udało się pobrać profilu.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [username]);
+
+  return (
+    <main className="shell">
+      <header className="topbar">
+        <div className="logo">NEXORAS <span>COMMUNITY</span></div>
+        <a className="profile" href="/community">← Społeczność</a>
+      </header>
+      <section className="profilePage">
+        {loading ? <p>Ładowanie profilu... 🛰️</p> : error ? <div className="profileError"><div className="icon">👻</div><h1>Profil nie istnieje</h1><p>⚠️ {error}</p><a className="profileButton" href="/community">Wróć do społeczności</a></div> : (
+          <div className="profileCard">
+            <div className="profileAvatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : "👤"}</div>
+            <div className="kicker">👤 NEXORAS PROFILE</div>
+            <h1>{profile.display_name || profile.username || "Nexorian"}</h1>
+            <p className="profileUsername">@{profile.username || "user"}</p>
+            <div className="profileInfo"><span>🟢 Aktywny w Nexoras Community</span><span>📅 Dołączył: {profile.created_at ? new Date(profile.created_at).toLocaleDateString("pl-PL") : "brak danych"}</span></div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
 }
