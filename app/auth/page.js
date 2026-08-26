@@ -13,11 +13,15 @@ export default function AuthPage() {
 
   async function submit(e) {
     e.preventDefault();
-    setBusy(true); setMessage("");
+    setBusy(true);
+    setMessage("");
     try {
       const supabase = getSupabaseBrowser();
+      if (!supabase) throw new Error("Brak konfiguracji Supabase. Sprawdź NEXT_PUBLIC_SUPABASE_URL i klucz w Vercel.");
       if (mode === "register") {
-        const { error } = await supabase.auth.signUp({ email, password, options: { data: { username, display_name: username } } });
+        const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+        if (cleanUsername.length < 3) throw new Error("Nick musi mieć minimum 3 znaki i może zawierać litery, cyfry oraz _.");
+        const { error } = await supabase.auth.signUp({ email, password, options: { data: { username: cleanUsername, display_name: cleanUsername } } });
         if (error) throw error;
         setMessage("Konto utworzone. Jeśli wymagane, sprawdź e-mail i potwierdź konto.");
       } else {
@@ -25,8 +29,9 @@ export default function AuthPage() {
         if (error) throw error;
         window.location.href = "/";
       }
-    } catch (err) { setMessage(err.message || "Wystąpił błąd."); }
-    finally { setBusy(false); }
+    } catch (err) {
+      setMessage(`⚠️ ${err.message || "Wystąpił błąd."}`);
+    } finally { setBusy(false); }
   }
 
   return (
