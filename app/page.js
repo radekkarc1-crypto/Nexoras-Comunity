@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 
 const cards = [["🎮","Gry","Kółko-krzyżyk z AI i kolejne gry."],["🤖","AI Chat","Darmowy chat AI prosto z Nexorasa."],["💡","Pomysły","Twórz projekty i rozwijaj je ze społecznością."],["📻","Radio","Nexoras Radio z bangerami."],["📝","Notatnik","Twoje notatki i foldery."],["🧰","Narzędzia","Przydatne narzędzia w jednym miejscu."]];
-const tracks=[{title:"Mata – Patointeligencja",artist:"Mata",src:"/audio/banger-004.mp3"},{title:"Sobel – Impreza",artist:"Sobel",src:"/audio/banger-005.mp3"},{title:"Kizo – Disney",artist:"Kizo",src:"/audio/Kizo%20-%20Disney.mp3"},{title:"Oki – Jakie To Uczucie?",artist:"Oki",src:"/audio/OKI%20-%20Jakie%20To%20Uczucie_.mp3"},{title:"Bambie & Young Leosia – BFF",artist:"Bambie & Young Leosia",src:"/audio/banger-008.mp3"},{title:"White 2115 – Morgan",artist:"White 2115",src:"/audio/banger-009.mp3"},{title:"Kubańczyk – Lady Pank",artist:"Kubańczyk",src:"/audio/banger-011.mp3"}];
+const tracks=[
+ {title:"Mata – Patointeligencja",artist:"Mata",src:"/audio/Patointeligencja.mp3"},
+ {title:"Sobel – Impreza",artist:"Sobel",src:"/audio/Sobel%20-%20Impreza.mp3"},
+ {title:"Kizo – Disney",artist:"Kizo",src:"/audio/Kizo%20-%20Disney.mp3"},
+ {title:"Oki – Jakie To Uczucie?",artist:"Oki",src:"/audio/OKI%20-%20Jakie%20To%20Uczucie_.mp3"},
+ {title:"White 2115 – Morgan",artist:"White 2115",src:"/audio/White%202115%20-%20Morgan.mp3"},
+ {title:"Kubańczyk – Lady Pank",artist:"Kubańczyk",src:"/audio/KUBA%C5%83CZYK%20-%20LADY%20PANK.mp3"},
+ {title:"Gibbs – Drive",artist:"Gibbs",src:"/audio/Gibbs%20Ft.Opa%C5%82%20-%20Drive%20(WOJTULA%20REMIX).mp3"},
+ {title:"Żabson – Floyd Mayweather",artist:"Żabson",src:"/audio/%C5%BBabson%20-%20Floyd%20Mayweather%20(HQ%20Instrumental).mp3"}
+];
 const emptyBoard=Array(9).fill(null);
 function winner(board){const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];for(const[a,b,c]of lines)if(board[a]&&board[a]===board[b]&&board[a]===board[c])return board[a];return board.every(Boolean)?"draw":null;}
 function aiMove(board){const free=board.map((v,i)=>v?null:i).filter(v=>v!==null);if(!free.length)return board;for(const i of free){const test=[...board];test[i]="O";if(winner(test)==="O")return test;}for(const i of free){const test=[...board];test[i]="X";if(winner(test)==="X"){const next=[...board];next[i]="O";return next;}}const preferred=[4,0,2,6,8,1,3,5,7].filter(i=>!board[i]);const i=preferred[Math.floor(Math.random()*Math.min(preferred.length,3))];const next=[...board];next[i]="O";return next;}
