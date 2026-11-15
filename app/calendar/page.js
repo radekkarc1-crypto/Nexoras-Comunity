@@ -1,152 +1,110 @@
 "use client";
-
 import { useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "nexoras-calendar-reminders-v2";
-const pad = n => String(n).padStart(2, "0");
-const dateKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const parseDate = value => { const [y,m,d]=value.split("-").map(Number); return new Date(y,m-1,d); };
-const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
-const monthNames = {daily:"dzień",weekly:"tydzień",monthly:"miesiąc",yearly:"rok"};
-const icons = ["🚀","🌙","⭐","🪐","🛰️","☄️","👾","🌍"];
+const KEY="nexoras-calendar-v3";
+const pad=n=>String(n).padStart(2,"0");
+const keyOf=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fromKey=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);};
+const plusDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
 
-export default function CalendarPage() {
-  const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
-  const [selected,setSelected]=useState(()=>dateKey(new Date()));
-  const [multiMode,setMultiMode]=useState(false);
-  const [selectedDays,setSelectedDays]=useState([dateKey(new Date())]);
-  const [reminders,setReminders]=useState([]);
-  const [title,setTitle]=useState("");
-  const [time,setTime]=useState("09:00");
-  const [details,setDetails]=useState("");
-  const [notice,setNotice]=useState("");
-  const [notify,setNotify]=useState(false);
-  const [repeatOpen,setRepeatOpen]=useState(false);
-  const [repeatOn,setRepeatOn]=useState(false);
-  const [frequency,setFrequency]=useState("weekly");
-  const [interval,setInterval]=useState("1");
-  const [until,setUntil]=useState(()=>dateKey(addDays(new Date(),30)));
-  const [gameOpen,setGameOpen]=useState(false);
-  const [cards,setCards]=useState([]);
-  const [flipped,setFlipped]=useState([]);
-  const [matched,setMatched]=useState([]);
-  const [moves,setMoves]=useState(0);
+export default function CalendarPage(){
+ const today=keyOf(new Date());
+ const [month,setMonth]=useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1));
+ const [selected,setSelected]=useState(today);
+ const [selectMode,setSelectMode]=useState(false);
+ const [picked,setPicked]=useState([]);
+ const [items,setItems]=useState([]);
+ const [title,setTitle]=useState("");
+ const [time,setTime]=useState("09:00");
+ const [details,setDetails]=useState("");
+ const [repeatOpen,setRepeatOpen]=useState(false);
+ const [repeat,setRepeat]=useState(false);
+ const [unit,setUnit]=useState("weekly");
+ const [every,setEvery]=useState("1");
+ const [end,setEnd]=useState(keyOf(plusDays(new Date(),30)));
+ const [message,setMessage]=useState("");
+ const [notify,setNotify]=useState(false);
+ const [game,setGame]=useState(false);
+ const [playing,setPlaying]=useState(false);
+ const [lane,setLane]=useState(1);
+ const [rocks,setRocks]=useState([]);
+ const [score,setScore]=useState(0);
+ const [gameOver,setGameOver]=useState(false);
 
-  useEffect(()=>{
-    try { setReminders(JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]")); } catch { setReminders([]); }
-    setNotify("Notification" in window && Notification.permission==="granted");
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
-  },[]);
-  useEffect(()=>{ try{localStorage.setItem(STORAGE_KEY,JSON.stringify(reminders));}catch{} },[reminders]);
-  useEffect(()=>{
-    const check=()=>{
-      const now=new Date(), minute=`${dateKey(now)}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      setReminders(current=>{
-        let changed=false;
-        const next=current.map(item=>{
-          if(!item.notified && item.at===minute){
-            changed=true;
-            if("Notification" in window && Notification.permission==="granted") new Notification("Nexoras • przypomnienie",{body:item.title,icon:"/icon.svg"});
-            return {...item,notified:true};
-          }
-          return item;
-        });
-        return changed?next:current;
-      });
-    };
-    const id=window.setInterval(check,15000); check();
-    return ()=>window.clearInterval(id);
-  },[]);
-  useEffect(()=>{
-    if(flipped.length!==2)return;
-    const [a,b]=flipped;
-    if(cards[a]===cards[b]) setMatched(current=>[...current,a,b]);
-    const id=window.setTimeout(()=>setFlipped([]),cards[a]===cards[b]?550:950);
-    return ()=>window.clearTimeout(id);
-  },[flipped,cards]);
+ useEffect(()=>{try{setItems(JSON.parse(localStorage.getItem(KEY)||"[]"));}catch{setItems([]);}setNotify("Notification" in window&&Notification.permission==="granted");if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});},[]);
+ useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(items));}catch{}},[items]);
+ useEffect(()=>{
+  if(!playing||gameOver)return;
+  const id=setInterval(()=>{
+   setRocks(old=>{
+    const moved=old.map(r=>({...r,row:r.row+1})).filter(r=>r.row<5);
+    const spawn={lane:Math.floor(Math.random()*3),row:0,id:Date.now()+Math.random()};
+    const next=[...moved,spawn];
+    if(next.some(r=>r.row===4&&r.lane===lane)){setGameOver(true);setPlaying(false);}
+    return next;
+   });
+   setScore(s=>s+1);
+  },560);
+  return()=>clearInterval(id);
+ },[playing,gameOver,lane]);
+ useEffect(()=>{
+  if(!playing)return;
+  const onKey=e=>{if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a")setLane(v=>Math.max(0,v-1));if(e.key==="ArrowRight"||e.key.toLowerCase()==="d")setLane(v=>Math.min(2,v+1));};
+  window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey);
+ },[playing]);
 
-  const days=useMemo(()=>{
-    const first=new Date(month.getFullYear(),month.getMonth(),1), offset=(first.getDay()+6)%7;
-    const start=addDays(first,-offset);
-    return Array.from({length:42},(_,i)=>addDays(start,i));
-  },[month]);
-  const selectedItems=reminders.filter(r=>r.at.slice(0,10)===selected).sort((a,b)=>a.at.localeCompare(b.at));
-  const today=dateKey(new Date());
-
-  function chooseDay(key){
-    setSelected(key);
-    if(multiMode) setSelectedDays(current=>current.includes(key)?current.filter(x=>x!==key):[...current,key]);
-    else setSelectedDays([key]);
+ const days=useMemo(()=>{const first=new Date(month.getFullYear(),month.getMonth(),1);const start=plusDays(first,-((first.getDay()+6)%7));return Array.from({length:42},(_,i)=>plusDays(start,i));},[month]);
+ const selectedItems=items.filter(x=>x.date===selected).sort((a,b)=>a.time.localeCompare(b.time));
+ function pickDay(day){
+  const k=keyOf(day);setSelected(k);
+  if(selectMode)setPicked(old=>old.includes(k)?old.filter(x=>x!==k):[...old,k]);
+ }
+ function toggleSelect(){if(!selectMode)setPicked([selected]);else setPicked([]);setSelectMode(v=>!v);}
+ function makeDates(){
+  const starts=selectMode?[...picked]:[selected];
+  if(!starts.length){setMessage("Najpierw zaznacz przynajmniej jeden dzień.");return null;}
+  const result=new Set();const n=Math.max(1,Math.min(365,Number(every)||1));
+  for(const s of starts){
+   const start=fromKey(s);
+   if(!repeat){result.add(s);continue;}
+   const last=fromKey(end);
+   if(last<start){setMessage("Data końca powtarzania jest wcześniejsza niż początek.");return null;}
+   let d=new Date(start),guard=0;
+   while(d<=last&&guard<500){
+    result.add(keyOf(d));guard++;
+    if(unit==="daily")d=plusDays(d,n);
+    else if(unit==="weekly")d=plusDays(d,7*n);
+    else if(unit==="monthly"){const day=d.getDate();d=new Date(d.getFullYear(),d.getMonth()+n,1);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));}
+    else {const day=d.getDate();d=new Date(d.getFullYear()+n,d.getMonth(),1);d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));}
+   }
   }
-  function toggleMulti(){
-    if(!multiMode)setSelectedDays([selected]);
-    setMultiMode(v=>!v);
-  }
-  function buildDates(startKey){
-    const starts=multiMode?selectedDays:[startKey];
-    const result=[];
-    const step=Math.max(1,Math.min(365,Number(interval)||1));
-    for(const start of starts){
-      if(!repeatOn){result.push(start);continue;}
-      const startDate=parseDate(start), end=parseDate(until);
-      if(end<startDate){setNotice("Data zakończenia powtarzania nie może być wcześniejsza niż początek.");return null;}
-      let cursor=new Date(startDate), guard=0;
-      while(cursor<=end && guard<500){
-        result.push(dateKey(cursor)); guard++;
-        if(frequency==="daily") cursor=addDays(cursor,step);
-        else if(frequency==="weekly") cursor=addDays(cursor,7*step);
-        else if(frequency==="monthly") cursor=new Date(cursor.getFullYear(),cursor.getMonth()+step,Math.min(startDate.getDate(),new Date(cursor.getFullYear(),cursor.getMonth()+step+1,0).getDate()));
-        else cursor=new Date(cursor.getFullYear()+step,cursor.getMonth(),Math.min(startDate.getDate(),new Date(cursor.getFullYear()+step,cursor.getMonth()+1,0).getDate()));
-      }
-    }
-    return [...new Set(result)].sort();
-  }
-  function addReminder(e){
-    e.preventDefault();
-    if(!title.trim())return;
-    const dates=buildDates(selected);
-    if(!dates)return;
-    const now=new Date();
-    if(dates.some(day=>new Date(`${day}T${time}`)<now)){setNotice("W zaznaczonych dniach jest już przeszła godzina. Wybierz przyszłe terminy.");return;}
-    const newItems=dates.map(day=>({id:crypto.randomUUID(),title:title.trim(),details:details.trim(),at:`${day}T${time}`,notified:false,repeat:repeatOn?{frequency,interval:Number(interval)||1,until}:null}));
-    setReminders(current=>[...current,...newItems]);
-    setTitle("");setDetails("");setNotice(`Dodano ${newItems.length} ${newItems.length===1?"termin":"terminów"}.`);
-    setMultiMode(false);setSelectedDays([selected]);setRepeatOpen(false);
-  }
-  function removeReminder(id){setReminders(current=>current.filter(x=>x.id!==id));}
-  async function enableNotifications(){
-    if(!("Notification" in window)){setNotice("Ta przeglądarka nie obsługuje powiadomień.");return;}
-    const permission=await Notification.requestPermission();setNotify(permission==="granted");
-    setNotice(permission==="granted"?"Powiadomienia włączone. Przeglądarka musi mieć otwarty kalendarz.":"Nie przyznano zgody na powiadomienia.");
-  }
-  function startGame(){
-    const deck=[...icons,...icons].sort(()=>Math.random()-.5);
-    setCards(deck);setFlipped([]);setMatched([]);setMoves(0);setGameOpen(true);
-  }
-  function flipCard(index){
-    if(flipped.length===2||flipped.includes(index)||matched.includes(index))return;
-    setMoves(v=>v+1);setFlipped(v=>[...v,index]);
-  }
-
-  return <main className="shell"><section className="calendarPage">
-    <a className="calendarBack" href="/">← Wróć do Nexoras Community</a>
-    <div className="calendarHead"><div><div className="kicker">NEXORAS • ORGANIZER</div><h1>Twój kalendarz.</h1><p>Plany, wydarzenia i przypomnienia. Także bez internetu.</p></div>
-      <div className="calendarActions"><button className="calendarBtn" onClick={enableNotifications}>{notify?"🔔 Powiadomienia włączone":"🔔 Włącz powiadomienia"}</button><button className="calendarBtn" onClick={startGame}>🎮 Nexoras Memory</button><button className="calendarBtn primary" onClick={()=>{setSelected(today);setSelectedDays([today]);setMonth(new Date(new Date().getFullYear(),new Date().getMonth(),1));}}>Dzisiaj</button></div>
-    </div>
-    <div className="calendarLayout"><section className="calendarBox">
-      <div className="monthBar"><button aria-label="Poprzedni miesiąc" onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()-1,1))}>←</button><h2>{month.toLocaleDateString("pl-PL",{month:"long",year:"numeric"})}</h2><button aria-label="Następny miesiąc" onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()+1,1))}>→</button></div>
-      <div className="calendarTools"><button className={multiMode?"active":""} onClick={toggleMulti}>{multiMode?"✓ Zaznaczanie aktywne":"▦ Zaznacz dni"}</button>{multiMode&&<><span>Zaznacz dowolne dni, potem dodaj wydarzenie.</span><button onClick={()=>setSelectedDays([])}>Wyczyść</button></>}</div>
-      <div className="weekdays">{["Pon","Wt","Śr","Czw","Pt","Sob","Niedz"].map(d=><span key={d}>{d}</span>)}</div>
-      <div className="daysGrid">{days.map(day=>{const key=dateKey(day),items=reminders.filter(r=>r.at.slice(0,10)===key),isMarked=multiMode&&selectedDays.includes(key);return <button key={key} className={`dayCell ${day.getMonth()!==month.getMonth()?"muted":""} ${key===today?"today":""} ${key===selected?"selected":""} ${isMarked?"multiSelected":""}`} onClick={()=>chooseDay(key)}><span className="dayNum">{day.getDate()}{isMarked?" ✓":""}</span>{items.slice(0,2).map(item=><span className="dayDot" key={item.id}>• {item.title}</span>)}{items.length>2&&<span className="dayDot">+{items.length-2} więcej</span>}</button>})}</div>
-      {multiMode&&<p className="selectionCount">Zaznaczono: <strong>{selectedDays.length}</strong> dni</p>}
-    </section><aside className="reminderBox"><div className="kicker">📌 PLAN DNIA</div><h2>{parseDate(selected).toLocaleDateString("pl-PL",{weekday:"long",day:"numeric",month:"long"})}</h2><p>{multiMode?(`Dodaj jedno wydarzenie do ${selectedDays.length} zaznaczonych dni.`):"Dodaj przypomnienie na wybrany dzień."}</p>
-      <form className="reminderForm" onSubmit={addReminder}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Co mam Ci przypomnieć?" maxLength={90} required/><input type="time" value={time} onChange={e=>setTime(e.target.value)} required/><textarea value={details} onChange={e=>setDetails(e.target.value)} placeholder="Szczegóły (opcjonalnie)"/>
-        <button type="button" className={`calendarBtn ${repeatOn?"active":""}`} onClick={()=>setRepeatOpen(true)}>🔁 {repeatOn?"Powtarzanie ustawione":"Powtarzaj..."}</button>
-        <button className="calendarBtn primary" type="submit">＋ Dodaj {multiMode? "na zaznaczone dni":"przypomnienie"}</button></form>
-      <h2>Przypomnienia</h2><div className="reminderList">{selectedItems.length?selectedItems.map(item=><article className="reminderItem" key={item.id}><small>🕒 {item.at.slice(11)} {item.repeat?(`• co ${item.repeat.interval} ${monthNames[item.repeat.frequency]}`):""} {item.notified?"• przypomniano":""}</small><strong>{item.title}</strong>{item.details&&<p>{item.details}</p>}<button onClick={()=>removeReminder(item.id)}>Usuń</button></article>):<p className="emptyReminders">Brak przypomnień na ten dzień.</p>}</div>
-      <p className="calendarNotice">Dane są przechowywane lokalnie na tym urządzeniu. Powiadomienia w tej wersji działają, gdy kalendarz jest otwarty.</p>{notice&&<p className="calendarNotice">{notice}</p>}
-    </aside></div>
-    {repeatOpen&&<div className="calendarModal" role="dialog" aria-modal="true" aria-label="Ustaw powtarzanie"><div className="calendarModalCard"><button className="modalClose" onClick={()=>setRepeatOpen(false)}>×</button><div className="kicker">AUTOMATYZACJA TERMINU</div><h2>Powtarzaj wydarzenie</h2><label className="repeatToggle"><input type="checkbox" checked={repeatOn} onChange={e=>setRepeatOn(e.target.checked)}/> Włącz powtarzanie</label>{repeatOn&&<><label>Powtarzaj co</label><div className="repeatRow"><input type="number" min="1" max="365" value={interval} onChange={e=>setInterval(e.target.value)}/><select value={frequency} onChange={e=>setFrequency(e.target.value)}><option value="daily">dzień</option><option value="weekly">tydzień</option><option value="monthly">miesiąc</option><option value="yearly">rok</option></select></div><label>Powtarzaj do</label><input type="date" min={selected} value={until} onChange={e=>setUntil(e.target.value)}/><p className="calendarNotice">Wydarzenie zostanie dodane do kolejnych pasujących dni aż do wybranej daty.</p></>}<div className="calendarActions"><button className="calendarBtn" onClick={()=>{setRepeatOn(false);setRepeatOpen(false);}}>Bez powtarzania</button><button className="calendarBtn primary" onClick={()=>setRepeatOpen(false)}>Zapisz ustawienia</button></div></div></div>}
-    {gameOpen&&<div className="calendarModal" role="dialog" aria-modal="true" aria-label="Nexoras Memory"><div className="calendarModalCard memoryCard"><button className="modalClose" onClick={()=>setGameOpen(false)}>×</button><div className="kicker">MINI GRA • OFFLINE</div><h2>Nexoras Memory</h2><p>Znajdź wszystkie 8 par kosmicznych symboli.</p><div className="memoryStats">Ruchy: <strong>{moves}</strong> · Pary: <strong>{matched.length/2}/8</strong></div><div className="memoryGrid">{cards.map((symbol,i)=><button key={i} className={`memoryTile ${flipped.includes(i)||matched.includes(i)?"revealed":""}`} onClick={()=>flipCard(i)}>{flipped.includes(i)||matched.includes(i)?symbol:"?"}</button>)}</div>{matched.length===16&&<p className="memoryWin">🚀 Misja wykonana! Ukończono w {moves} ruchach.</p>}<button className="calendarBtn primary" onClick={startGame}>Nowa gra</button></div></div>}
-  </section></main>;
+  return [...result].sort();
+ }
+ function addEvent(e){
+  e.preventDefault();if(!title.trim())return;
+  const dates=makeDates();if(!dates)return;
+  const group=crypto.randomUUID();
+  const created=dates.map(date=>({id:crypto.randomUUID(),group,date,time,title:title.trim(),details:details.trim(),repeat:repeat?{unit,every:Number(every)||1,end}:null}));
+  setItems(old=>[...old,...created]);setMessage(`Dodano wydarzenie do ${dates.length} ${dates.length===1?"dnia":"dni"}.`);
+  setTitle("");setDetails("");setSelectMode(false);setPicked([]);setRepeat(false);setRepeatOpen(false);
+ }
+ function removeEvent(id){setItems(old=>old.filter(x=>x.id!==id));}
+ async function askNotifications(){if(!("Notification"in window)){setMessage("Ta przeglądarka nie obsługuje powiadomień.");return;}const p=await Notification.requestPermission();setNotify(p==="granted");setMessage(p==="granted"?"Zgoda na powiadomienia zapisana. W tej wersji kalendarz musi być otwarty.":"Nie przyznano zgody.");}
+ function startGame(){setLane(1);setRocks([]);setScore(0);setGameOver(false);setPlaying(true);setGame(true);}
+ return <main className="shell"><section className="calendarPage">
+  <a className="calendarBack" href="/">← Wróć do Nexoras Community</a>
+  <div className="calendarHead"><div><div className="kicker">NEXORAS • ORGANIZER</div><h1>Twój kalendarz.</h1><p>Wydarzenia, przypomnienia i planowanie offline.</p></div><div className="calendarActions"><button className="calendarBtn" onClick={askNotifications}>🔔 {notify?"Powiadomienia włączone":"Włącz powiadomienia"}</button><button className="calendarBtn" onClick={startGame}>☄️ Asteroid Dash</button><button className="calendarBtn primary" onClick={()=>{setSelected(today);setMonth(new Date(new Date().getFullYear(),new Date().getMonth(),1));}}>Dzisiaj</button></div></div>
+  <div className="calendarLayout"><section className="calendarBox">
+   <div className="monthBar"><button onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()-1,1))}>←</button><h2>{month.toLocaleDateString("pl-PL",{month:"long",year:"numeric"})}</h2><button onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()+1,1))}>→</button></div>
+   <div className="calendarTools"><button className={selectMode?"active":""} onClick={toggleSelect}>{selectMode?"✓ Zakończ zaznaczanie":"☑ Zaznacz dni"}</button>{selectMode&&<><span>Teraz klikaj dni w kalendarzu. Każdy klik dodaje lub usuwa dzień.</span><button onClick={()=>setPicked([])}>Wyczyść wybór</button><strong className="selectionCount">{picked.length} zazn.</strong></>}</div>
+   <div className="weekdays">{["Pon","Wt","Śr","Czw","Pt","Sob","Niedz"].map(x=><span key={x}>{x}</span>)}</div>
+   <div className="daysGrid">{days.map(day=>{const k=keyOf(day),count=items.filter(x=>x.date===k).length,marked=selectMode&&picked.includes(k);return <button type="button" key={k} aria-pressed={marked} className={`dayCell ${day.getMonth()!==month.getMonth()?"muted":""} ${k===today?"today":""} ${k===selected?"selected":""} ${marked?"multiSelected":""}`} onClick={()=>pickDay(day)}><span className="dayNum">{marked?"✓ ": ""}{day.getDate()}</span>{count>0&&<span className="dayDot">{count} {count===1?"wydarzenie":"wydarzeń"}</span>}</button>})}</div>
+   {selectMode&&<button className="calendarBtn primary selectionAdd" disabled={!picked.length} onClick={()=>{setSelected(picked[0]||selected);document.getElementById("event-title")?.focus();}}>Dodaj wydarzenie do {picked.length} zaznaczonych dni ↓</button>}
+  </section><aside className="reminderBox"><div className="kicker">📌 PLAN DNIA</div><h2>{fromKey(selected).toLocaleDateString("pl-PL",{weekday:"long",day:"numeric",month:"long"})}</h2><p>{selectMode?`Zaznaczono ${picked.length} dni. Wydarzenie zostanie dodane do każdego z nich.`:"Dodaj wydarzenie na wybrany dzień."}</p>
+   <form className="reminderForm" onSubmit={addEvent}><input id="event-title" value={title} onChange={e=>setTitle(e.target.value)} placeholder="Nazwa wydarzenia" maxLength={90} required/><input type="time" value={time} onChange={e=>setTime(e.target.value)} required/><textarea value={details} onChange={e=>setDetails(e.target.value)} placeholder="Szczegóły (opcjonalnie)"/><button type="button" className={`calendarBtn ${repeat?"active":""}`} onClick={()=>setRepeatOpen(true)}>🔁 {repeat?"Powtarzanie ustawione":"Ustaw powtarzanie…"}</button><button className="calendarBtn primary" type="submit">＋ Zapisz wydarzenie</button></form>
+   <h2>Wydarzenia tego dnia</h2><div className="reminderList">{selectedItems.length?selectedItems.map(x=><article className="reminderItem" key={x.id}><small>🕒 {x.time}{x.repeat? ` • co ${x.repeat.every} ${({daily:"dni",weekly:"tygodnie",monthly:"miesiące",yearly:"lata"})[x.repeat.unit]}`:""}</small><strong>{x.title}</strong>{x.details&&<p>{x.details}</p>}<button onClick={()=>removeEvent(x.id)}>Usuń</button></article>):<p className="emptyReminders">Brak wydarzeń na ten dzień.</p>}</div><p className="calendarNotice">Dane zapisują się na tym urządzeniu. Powiadomienia w tej wersji wymagają otwartego kalendarza.</p>{message&&<p className="calendarNotice" role="status">{message}</p>}
+  </aside></div>
+  {repeatOpen&&<div className="calendarModal" role="dialog" aria-modal="true" aria-label="Powtarzanie wydarzenia"><div className="calendarModalCard"><button className="modalClose" onClick={()=>setRepeatOpen(false)}>×</button><div className="kicker">USTAWIENIA WYDARZENIA</div><h2>Powtarzaj wydarzenie</h2><label className="repeatToggle"><input type="checkbox" checked={repeat} onChange={e=>setRepeat(e.target.checked)}/> Włącz powtarzanie</label>{repeat&&<><label>Powtarzaj co</label><div className="repeatRow"><input type="number" min="1" max="365" value={every} onChange={e=>setEvery(e.target.value)}/><select value={unit} onChange={e=>setUnit(e.target.value)}><option value="daily">dni</option><option value="weekly">tygodnie</option><option value="monthly">miesiące</option><option value="yearly">lata</option></select></div><label>Koniec powtarzania</label><input type="date" min={selected} value={end} onChange={e=>setEnd(e.target.value)}/><p className="calendarNotice">Wydarzenie będzie tworzone w wybranym odstępie aż do tej daty.</p></>}<div className="calendarActions"><button className="calendarBtn" onClick={()=>{setRepeat(false);setRepeatOpen(false);}}>Wyłącz</button><button className="calendarBtn primary" onClick={()=>setRepeatOpen(false)}>Zapisz</button></div></div></div>}
+  {game&&<div className="calendarModal" role="dialog" aria-modal="true" aria-label="Asteroid Dash"><div className="calendarModalCard arcadeCard"><button className="modalClose" onClick={()=>{setGame(false);setPlaying(false);}}>×</button><div className="kicker">NEXORAS ARCADE • OFFLINE</div><h2>☄️ Asteroid Dash</h2><p>Uciekaj przed asteroidami! Steruj strzałkami lub przyciskami.</p><div className="arcadeScore">WYNIK: <strong>{score}</strong></div><div className="arcadeBoard">{Array.from({length:5},(_,row)=><div className="arcadeRow" key={row}>{[0,1,2].map(col=><div className={`arcadeCell ${lane===col&&row===4?"ship":""}`} key={col}>{rocks.some(r=>r.row===row&&r.lane===col)?"☄️":lane===col&&row===4?"🚀":""}</div>)}</div>)}</div>{gameOver&&<h3 className="arcadeOver">💥 Statek trafiony! Wynik: {score}</h3>}<div className="arcadeControls"><button onClick={()=>setLane(v=>Math.max(0,v-1))} disabled={!playing}>← LEWO</button><button onClick={()=>setLane(v=>Math.min(2,v+1))} disabled={!playing}>PRAWO →</button></div><button className="calendarBtn primary" onClick={startGame}>{gameOver?"Zagraj ponownie":"Start / Restart"}</button></div></div>}
+ </section></main>;
 }
