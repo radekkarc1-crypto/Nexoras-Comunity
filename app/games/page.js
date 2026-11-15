@@ -13,7 +13,6 @@ function step(){let h=hazards.map(x=>({...x,row:x.row+1})).filter(x=>x.row<5).co
 function snakeTick(d=dir){N(s=>{let delta={U:[0,-1],D:[0,1],L:[-1,0],R:[1,0]}[d],head={x:s[0].x+delta[0],y:s[0].y+delta[1]},e=head.x===food.x&&head.y===food.y,body=e?s:s.slice(0,-1);if(head.x<0||head.x>8||head.y<0||head.y>8||body.some(p=>p.x===head.x&&p.y===head.y)){S("snakeover");return s;}if(e){let f;do{f={x:Math.floor(Math.random()*9),y:Math.floor(Math.random()*9)}}while([head,...s].some(p=>p.x===f.x&&p.y===f.y));F(f);Q(x=>x+10);}return [head,...body];});}
 useEffect(()=>{if(active!=="snake")return;let id=setInterval(()=>snakeTick(),250);return()=>clearInterval(id);},[active,dir,food]);
 useEffect(()=>{if(active!=="snake"&&active!=="2048")return;let f=e=>{let m={ArrowUp:"U",ArrowDown:"D",ArrowLeft:"L",ArrowRight:"R"};if(active==="snake"&&m[e.key])D(m[e.key]);if(active==="2048"){let a={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right"};if(a[e.key])B(b=>slide(b,a[e.key]));}};window.addEventListener("keydown",f);return()=>window.removeEventListener("keydown",f);},[active]);
-function ttt(i){if(tttDone||tttBoard[i])return;}
 const tttBoard=ttt,tttDone=winner(tttBoard);
 function playTtt(i){if(tttBoard[i]||tttDone)return;let b=tttBoard.slice();b[i]="X";if(!winner(b)){let free=b.map((v,j)=>v?null:j).filter(v=>v!==null);if(free.length)b[free[Math.floor(Math.random()*free.length)]]="O";}T(b);}
 function reveal(i){if(mines.over||mines.open.includes(i))return;let o=mines.open.concat(i),hit=mines.m.includes(i);Z(m=>({...m,open:o,over:hit||o.length===54}));}
